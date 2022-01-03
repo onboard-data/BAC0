@@ -10,9 +10,9 @@ TaskManager.py - creation of threads used for repetitive tasks.
 A key building block for point simulation.
 """
 # --- standard Python modules ---
-from threading import Thread, Lock
+from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 import time
-from collections import deque
 from random import random
 
 
@@ -29,6 +29,7 @@ class Manager:
     tasks = []
     manager = None
     enable = False
+    pool = None
 
     def __init__(self):
         if not Manager.enable:
@@ -37,29 +38,36 @@ class Manager:
         self._log.debug("Task Manager Initiated")
 
     @classmethod
+    def execute_task(cls, task):
+        task.execute()
+        cls.tasks.remove(task.id)
+        task.previous_execution = time.time()
+        if task.delay > 0:
+            task.next_execution = task.previous_execution + task.delay
+            cls.schedule_task(task)
+
+        cls._log.info(
+            "Task {} | {} executed. {}".format(task.id, task.name, task)
+        )
+
+    @classmethod
     def process(cls):
         task = None
         while cls.enable:
-            try:
-                if cls.tasks == []:
-                    raise IndexError
-                _temp = cls.tasks.copy()
-                _temp.sort()
-                if _temp[-1].next_execution <= time.time():
-                    task = _temp.pop()
-                    task.execute()
-                    cls.tasks.remove(task.id)
-                    task.previous_execution = time.time()
-                    if task.delay > 0:
-                        task.next_execution = task.previous_execution + task.delay
-                        cls.schedule_task(task)
-
-                    cls._log.debug(
-                        "Task {} | {} executed. {}".format(task.id, task.name, task)
-                    )
-            except IndexError:
+            if cls.tasks == []:
                 cls._log.debug("Task Manager waiting for tasks...")
                 time.sleep(1)
+                continue
+            try:
+                executing = []
+                for task in cls.tasks.copy():
+                    if task.next_execution > time.time():
+                        continue
+                    executing.append(cls.pool.submit(cls.execute_task, task))
+                for fut in executing:
+                    fut.result()
+                if not executing:
+                    time.sleep(1)  # didn't do anything, don't spin-lock
             except DeviceNotConnected as error:
                 cls._log.warning(
                     "Device disconnected with error {}. Removing task ({}).".format(
@@ -106,6 +114,7 @@ class Manager:
     def start_service(cls):
         cls._log.info("Starting TaskManager")
         cls.enable = True
+        cls.pool = ThreadPoolExecutor(thread_name_prefix='bac0-task-manager')
         cls.manager = Thread(target=cls.process, daemon=True)
         cls.manager.start()
 
@@ -113,6 +122,8 @@ class Manager:
     def stop_service(cls):
         cls._log.info("Stopping TaskManager")
         cls.enable = False
+        if cls.pool is not None:
+            cls.pool.shutdown()
         # time.sleep(1)
         # cls.manager.join()
 
