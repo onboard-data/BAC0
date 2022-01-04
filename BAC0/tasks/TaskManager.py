@@ -26,7 +26,7 @@ from ..core.io.IOExceptions import DeviceNotConnected
 
 @note_and_log
 class Manager:
-    tasks = []
+    tasks = {}
     manager = None
     enable = False
     pool = None
@@ -39,12 +39,30 @@ class Manager:
 
     @classmethod
     def execute_task(cls, task):
-        task.execute()
-        cls.tasks.remove(task.id)
-        task.previous_execution = time.time()
-        if task.delay > 0:
-            task.next_execution = task.previous_execution + task.delay
-            cls.schedule_task(task)
+        try:
+            task.execute()
+            task.previous_execution = time.time()
+            if task.delay > 0:
+                task.next_execution = task.previous_execution + task.delay
+            else:
+                cls.tasks.pop(task.id, None)
+        except DeviceNotConnected as error:
+            cls._log.warning(
+                "Device disconnected. Removing task ({}).".format(error, task)
+            )
+            cls.tasks.pop(task.id, None)
+        except Exception as error:
+            if task.name == "Ping Task":
+                cls._log.warning(
+                    "Ping failed with error {} ({}).".format(error, task)
+                )
+            else:
+                cls._log.error(
+                    "Super Mega Giga big error {}. Removing task.".format(error)
+                )
+                cls.tasks.pop(task.id, None)
+        finally:
+            task.running = False
 
         cls._log.info(
             "Task {} | {} executed. {}".format(task.id, task.name, task)
@@ -52,52 +70,35 @@ class Manager:
 
     @classmethod
     def process(cls):
-        task = None
         while cls.enable:
-            if cls.tasks == []:
+            did_work = False
+            tasks = list(cls.tasks.values())
+            tasks.sort()
+            for task in tasks:
+                if task.running or task.next_execution > time.time():
+                    continue
+                task.running = True
+                cls.pool.submit(cls.execute_task, task)
+                did_work = True
+
+            if not did_work:
                 cls._log.debug("Task Manager waiting for tasks...")
-                time.sleep(1)
-                continue
-            try:
-                executing = []
-                for task in cls.tasks.copy():
-                    if task.next_execution > time.time():
-                        continue
-                    executing.append(cls.pool.submit(cls.execute_task, task))
-                for fut in executing:
-                    fut.result()
-                if not executing:
-                    time.sleep(1)  # didn't do anything, don't spin-lock
-            except DeviceNotConnected as error:
-                cls._log.warning(
-                    "Device disconnected with error {}. Removing task ({}).".format(
-                        error, task
-                    )
+                time.sleep(1)  # didn't do anything, don't spin-lock
+
+            if not cls.manager.is_alive() and cls.enable:
+                cls._log.error(
+                    "TaskManager Thread stopped... This is not normal..."
                 )
-                cls.tasks.remove(task.id)
-            except Exception as error:
-                if task.name == "Ping Task":
-                    cls._log.warning(
-                        "Ping failed with error {} ({}).".format(error, task)
-                    )
-                else:
-                    cls._log.error(
-                        "Super Mega Giga big error {}. Removing task.".format(error)
-                    )
-                    cls.tasks.remove(task.id)
-            else:
-                if not cls.manager.is_alive() and cls.enable:
-                    cls._log.error(
-                        "TaskManager Thread stopped... This is not normal..."
-                    )
-                    cls.stop_service()
-                    cls.start_service()
+                cls.stop_service()
+                cls.start_service()
+
             time.sleep(0.01)
+
         cls.stop_service()
 
     @classmethod
     def schedule_task(cls, task):
-        cls.tasks.append(task)
+        cls.tasks[task.id] = task
 
     @classmethod
     def stopAllTasks(cls):
@@ -130,7 +131,7 @@ class Manager:
     @classmethod
     def clean_tasklist(cls):
         cls._log.debug("Cleaning tasks list")
-        cls.tasks = []
+        cls.tasks = {}
 
     def __repr__(self):
         return "TaskManager"
@@ -142,7 +143,6 @@ class Manager:
 
 @note_and_log
 class Task(object):
-    _tasks = []
     high_latency = 60
 
     def __init__(self, fn=None, name=None, delay=0):
@@ -159,6 +159,7 @@ class Task(object):
             self.delay = delay if delay >= 5 else 5
         else:
             self.delay = 0
+        self.running = False
         self.previous_execution = None
         self.average_execution_delay = 0
         self.average_latency = 0
@@ -167,7 +168,6 @@ class Task(object):
         self.count = 0
         self.id = id(self)
         self._kwargs = None
-        Task._tasks.append(self)
 
     def task(self):
         raise NotImplementedError("Must be implemented")
@@ -236,8 +236,7 @@ class Task(object):
         )
 
     def __lt__(self, other):
-        # list sort use __lt__... little cheat to reverse list already
-        return self.next_execution > other.next_execution
+        return self.next_execution < other.next_execution
 
     def __eq__(self, other):
         # list remove use __eq__... so compare with id
