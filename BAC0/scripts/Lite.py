@@ -24,7 +24,7 @@ Once the class is created, create the local object and use it::
 # --- standard Python modules ---
 import weakref
 from collections import namedtuple
-import typing as t
+from typing import Optional, Dict, Any, Union, Tuple, List
 
 # --- this application's modules ---
 from ..scripts.Base import Base
@@ -98,15 +98,15 @@ class Lite(
 
     def __init__(
         self,
-        ip: t.Optional[str] = None,
-        port: t.Optional[int] = None,
-        mask: t.Optional[int] = None,
+        ip: Optional[str] = None,
+        port: Optional[int] = None,
+        mask: Optional[int] = None,
         bbmdAddress=None,
         bbmdTTL: int = 0,
         bdtable=None,
         ping: bool = True,
         ping_delay: int = 300,
-        db_params: t.Optional[t.Dict[str, t.Any]] = None,
+        db_params: Optional[Dict[str, Any]] = None,
         **params
     ) -> None:
         self._log.info(
@@ -210,11 +210,10 @@ class Lite(
         return self.this_application.nse._learnedNetworks
 
     def discover(
-        self,
-        networks: t.Union[str, t.List[int], int] = "known",
-        limits: t.Tuple[int, int] = (0, 4194303),
+        self, networks: Union[str, List[int], int] = "known",
+        limits: Tuple[int, int] = (0, 4194303),
         global_broadcast: bool = False,
-        reset: bool = False,
+        reset: bool = False
     ):
         """
         Discover is meant to be the function used to explore the network when we
@@ -301,9 +300,7 @@ class Lite(
                 found.append(each)
         return found
 
-    def register_device(
-        self, device: t.Union[RPDeviceConnected, RPMDeviceConnected]
-    ) -> None:
+    def register_device(self, device: Union[RPDeviceConnected, RPMDeviceConnected]) -> None:
         oid = id(device)
         self._registered_devices[oid] = device
 
@@ -371,7 +368,7 @@ class Lite(
         except KeyError:
             pass
 
-    def add_trend(self, point_to_trend: t.Union[Point, TrendLog, VirtualPoint]) -> None:
+    def add_trend(self, point_to_trend: Union[Point, TrendLog, VirtualPoint]) -> None:
         """
         Add point to the list of histories that will be handled by Bokeh
 
@@ -388,9 +385,7 @@ class Lite(
         else:
             raise TypeError("Please provide point containing history")
 
-    def remove_trend(
-        self, point_to_remove: t.Union[Point, TrendLog, VirtualPoint]
-    ) -> None:
+    def remove_trend(self, point_to_remove: Union[Point, TrendLog, VirtualPoint]) -> None:
         """
         Remove point from the list of histories that will be handled by Bokeh
 
@@ -409,7 +404,7 @@ class Lite(
             del self._points_to_trend[oid]
 
     @property
-    def devices(self) -> t.List[t.Tuple[str, str, str, int]]:
+    def devices(self) -> List[Tuple[str, str, Any, Any]]:
         """
         This property will create a good looking table of all the discovered devices
         seen on the network.
@@ -444,7 +439,7 @@ class Lite(
         return lst  # type: ignore[return-value]
 
     @property
-    def trends(self) -> t.List[t.Any]:
+    def trends(self) -> List[Any]:
         """
         This will present a list of all registered trends used by Bokeh Server
         """
