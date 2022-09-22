@@ -48,7 +48,7 @@ class Manager:
                 cls.tasks.pop(task.id, None)
         except DeviceNotConnected as error:
             cls._log.warning(
-                "Device disconnected. Removing task ({}).".format(error, task)
+                "Device disconnected {}. Removing task ({}).".format(error, task)
             )
             cls.tasks.pop(task.id, None)
         except Exception as error:
