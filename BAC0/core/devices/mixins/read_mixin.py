@@ -275,6 +275,8 @@ class RPMObjectsProcessing:
         for points, address in retrieve_type(objList, obj_type):
             request.append("{} {} {} ".format(points, address, prop_list))
 
+        response_size = len(prop_list.split(" "))
+
         def _find_propid_index(key):
             _prop_list = prop_list.split(" ")
             for i, each in enumerate(_prop_list):
@@ -292,12 +294,21 @@ class RPMObjectsProcessing:
         except SegmentationNotSupported:
             raise
         # Process responses and create point
-        i = 0
-        for each in retrieve_type(objList, obj_type):
+        for i, each in enumerate(retrieve_type(objList, obj_type)):
             point_type = str(each[0])
             point_address = str(each[1])
-            point_infos = points_info[i]
-            i += 1
+            if points_info is None or i >= len(points_info):
+                point_infos = []
+            else:
+                point_infos = points_info[i]
+
+            if len(point_infos) < response_size:
+                self._log.warning(
+                    "There has been a problem defining {} points. It is sometimes due to busy network. Please retry the device creation".format(
+                        obj_type
+                    )
+                )
+                break
 
             pointName = point_infos[_find_propid_index("objectName")]
             presentValue = point_infos[_find_propid_index("presentValue")]
