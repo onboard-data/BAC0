@@ -29,15 +29,25 @@ from ..Trends import TrendLog
 
 # Requests processing
 def retrieve_type(obj_list, point_type_key):
-    for point_type, point_address in obj_list:
-        if point_type_key in str(point_type):
-            yield (point_type, point_address)
+    try:
+        for point_type, point_address in obj_list:
+            if point_type_key in str(point_type):
+                yield (point_type, point_address)
+    except TypeError:
+        pass
 
 
 def to_float_if_possible(val):
     try:
         return float(val)
-    except:
+    except Exception:
+        return val
+
+
+def to_int_if_possible(val):
+    try:
+        return int(val)
+    except Exception:
         return val
 
 
@@ -139,7 +149,7 @@ class DiscoveryUtilsMixin:
     Those functions are used in the process of discovering points in a device
     """
 
-    def read_objects_list(self, custom_object_list=None):
+    def read_objects_list(self, custom_object_list=None) -> t.List:
         if custom_object_list:
             objList = custom_object_list
         else:
@@ -273,6 +283,8 @@ class RPMObjectsProcessing:
         for points, address in retrieve_type(objList, obj_type):
             request.append("{} {} {} ".format(points, address, prop_list))
 
+        response_size = len(prop_list.split(" "))
+
         def _find_propid_index(key):
             _prop_list = prop_list.split(" ")
             for i, each in enumerate(_prop_list):
@@ -290,20 +302,29 @@ class RPMObjectsProcessing:
         except SegmentationNotSupported:
             raise
         # Process responses and create point
-        i = 0
-        for each in retrieve_type(objList, obj_type):
+        for i, each in enumerate(retrieve_type(objList, obj_type)):
             point_type = str(each[0])
             point_address = str(each[1])
-            point_infos = points_info[i]
-            i += 1
+            if points_info is None or i >= len(points_info):
+                point_infos = []
+            else:
+                point_infos = points_info[i]
+
+            if len(point_infos) < response_size:
+                self._log.warning(
+                    "There has been a problem defining {} points. It is sometimes due to busy network. Please retry the device creation".format(
+                        obj_type
+                    )
+                )
+                break
 
             pointName = point_infos[_find_propid_index("objectName")]
             presentValue = point_infos[_find_propid_index("presentValue")]
             if presentValue is not None:
                 if obj_type == "analog" or obj_type == "loop":
-                    presentValue = float(presentValue)
+                    presentValue = to_float_if_possible(presentValue)
                 elif obj_type == "multi":
-                    presentValue = int(presentValue)
+                    presentValue = to_int_if_possible(presentValue)
             try:
                 point_description = point_infos[_find_propid_index("description")]
             except KeyError:
@@ -358,17 +379,13 @@ class RPObjectsProcessing:
             point_type = str(each[0])
             point_address = str(each[1])
 
-            if obj_type == "analog":
+            if obj_type in ("analog", "loop"):
                 units_state = self.read_single(
                     "{} {} units ".format(point_type, point_address)
                 )
             elif obj_type == "multi":
                 units_state = self.read_single(
                     "{} {} stateText ".format(point_type, point_address)
-                )
-            elif obj_type == "loop":
-                units_state = self.read_single(
-                    "{} {} units ".format(point_type, point_address)
                 )
             elif obj_type == "binary":
                 units_state = (
@@ -390,7 +407,7 @@ class RPObjectsProcessing:
                 "{} {} presentValue ".format(point_type, point_address)
             )
             if (obj_type == "analog" or obj_type == "loop") and presentValue:
-                presentValue = float(presentValue)
+                presentValue = to_float_if_possible(presentValue)
 
             _newpoints.append(
                 obj_cls(
