@@ -34,9 +34,12 @@ from ..Trends import TrendLog
 
 # Requests processing
 def retrieve_type(obj_list, point_type_key):
-    for point_type, point_address in obj_list:
-        if point_type_key in str(point_type):
-            yield (point_type, point_address)
+    try:
+        for point_type, point_address in obj_list:
+            if point_type_key in str(point_type):
+                yield (point_type, point_address)
+    except TypeError:
+        pass
 
 
 def to_float_if_possible(val):
@@ -141,7 +144,7 @@ class DiscoveryUtilsMixin:
     Those functions are used in the process of discovering points in a device
     """
 
-    def read_objects_list(self, custom_object_list=None):
+    def read_objects_list(self, custom_object_list=None) -> t.List:
         if custom_object_list:
             objList = custom_object_list
         else:
