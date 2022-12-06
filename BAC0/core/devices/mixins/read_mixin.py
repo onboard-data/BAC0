@@ -45,7 +45,14 @@ def retrieve_type(obj_list, point_type_key):
 def to_float_if_possible(val):
     try:
         return float(val)
-    except:
+    except Exception:
+        return val
+
+
+def to_int_if_possible(val):
+    try:
+        return int(val)
+    except Exception:
         return val
 
 
@@ -317,9 +324,9 @@ class RPMObjectsProcessing:
             presentValue = point_infos[_find_propid_index("presentValue")]
             if presentValue is not None:
                 if obj_type == "analog" or obj_type == "loop":
-                    presentValue = float(presentValue)
+                    presentValue = to_float_if_possible(presentValue)
                 elif obj_type == "multi":
-                    presentValue = int(presentValue)
+                    presentValue = to_int_if_possible(presentValue)
             try:
                 point_description = point_infos[_find_propid_index("description")]
             except KeyError:
@@ -402,7 +409,7 @@ class RPObjectsProcessing:
                 "{} {} presentValue ".format(point_type, point_address)
             )
             if (obj_type == "analog" or obj_type == "loop") and presentValue:
-                presentValue = float(presentValue)
+                presentValue = to_float_if_possible(presentValue)
 
             _newpoints.append(
                 obj_cls(
