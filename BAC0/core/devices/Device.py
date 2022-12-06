@@ -135,7 +135,8 @@ class Device(SQLMixin):
         save_resampling="1s",
         clear_history_on_save=False,
         history_size=None,
-        reconnect_on_failure=True
+        reconnect_on_failure=True,
+        raise_connection_errors=False,
     ):
 
         self.properties = DeviceProperties()
@@ -155,6 +156,7 @@ class Device(SQLMixin):
         self.properties.clear_history_on_save = clear_history_on_save
         self.properties.history_size = history_size
         self._reconnect_on_failure = reconnect_on_failure
+        self._raise_connection_errors = raise_connection_errors
 
         self.segmentation_supported = segmentation_supported
         self.custom_object_list = object_list
@@ -547,12 +549,14 @@ class DeviceConnected(Device):
             self._log.error("Cannot retrieve object list, disconnecting...")
             self.segmentation_supported = False
             self.new_state(DeviceDisconnected)
-        except IndexError:
+        except IndexError as e:
             if self._reconnect_on_failure:
                 self._log.error("Device creation failed... re-connecting")
                 self.new_state(DeviceDisconnected)
             else:
                 self._log.error("Device creation failed... disconnecting")
+            if self._raise_connection_errors:
+                raise e
 
     def __getitem__(self, point_name):
         """
