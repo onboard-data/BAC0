@@ -301,6 +301,7 @@ class RPMObjectsProcessing:
             )
         except SegmentationNotSupported:
             raise
+
         # Process responses and create point
         for i, each in enumerate(retrieve_type(objList, obj_type)):
             point_type = str(each[0])
@@ -371,59 +372,66 @@ class RPMObjectsProcessing:
 
 
 class RPObjectsProcessing:
+    def _retrieve_point(self, obj_cls, obj_type, point_type, point_address):
+        if obj_type in ("analog", "loop"):
+            units_state = self.read_single(
+                "{} {} units ".format(point_type, point_address)
+            )
+        elif obj_type == "multi":
+            units_state = self.read_single(
+                "{} {} stateText ".format(point_type, point_address)
+            )
+        elif obj_type == "binary":
+            units_state = (
+                (
+                    self.read_single(
+                        "{} {} inactiveText ".format(point_type, point_address)
+                    )
+                ),
+                (
+                    self.read_single(
+                        "{} {} activeText ".format(point_type, point_address)
+                    )
+                ),
+            )
+        else:
+            units_state = None
+
+        presentValue = self.read_single(
+            "{} {} presentValue ".format(point_type, point_address)
+        )
+        if (obj_type == "analog" or obj_type == "loop") and presentValue:
+            presentValue = to_float_if_possible(presentValue)
+
+        return obj_cls(
+            pointType=point_type,
+            pointAddress=point_address,
+            pointName=self.read_single(
+                "{} {} objectName ".format(point_type, point_address)
+            ),
+            description=self.read_single(
+                "{} {} description ".format(point_type, point_address)
+            ),
+            presentValue=presentValue,
+            units_state=units_state,
+            device=self,
+        )
+
     def _process_new_objects(
         self, obj_cls=NumericPoint, obj_type: str = "analog", objList=None
     ):
         _newpoints = []
+
         for each in retrieve_type(objList, obj_type):
             point_type = str(each[0])
             point_address = str(each[1])
+            try:
+                point = self._retrieve_point(obj_cls, obj_type, point_type, point_address)
+            except Exception as e:
+                self._log.warning(f"Exception building point: {e}")
+                continue
+            _newpoints.append(point)
 
-            if obj_type in ("analog", "loop"):
-                units_state = self.read_single(
-                    "{} {} units ".format(point_type, point_address)
-                )
-            elif obj_type == "multi":
-                units_state = self.read_single(
-                    "{} {} stateText ".format(point_type, point_address)
-                )
-            elif obj_type == "binary":
-                units_state = (
-                    (
-                        self.read_single(
-                            "{} {} inactiveText ".format(point_type, point_address)
-                        )
-                    ),
-                    (
-                        self.read_single(
-                            "{} {} activeText ".format(point_type, point_address)
-                        )
-                    ),
-                )
-            else:
-                units_state = None
-
-            presentValue = self.read_single(
-                "{} {} presentValue ".format(point_type, point_address)
-            )
-            if (obj_type == "analog" or obj_type == "loop") and presentValue:
-                presentValue = to_float_if_possible(presentValue)
-
-            _newpoints.append(
-                obj_cls(
-                    pointType=point_type,
-                    pointAddress=point_address,
-                    pointName=self.read_single(
-                        "{} {} objectName ".format(point_type, point_address)
-                    ),
-                    description=self.read_single(
-                        "{} {} description ".format(point_type, point_address)
-                    ),
-                    presentValue=presentValue,
-                    units_state=units_state,
-                    device=self,
-                )
-            )
         return _newpoints
 
 
