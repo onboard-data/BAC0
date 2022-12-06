@@ -374,17 +374,13 @@ class RPObjectsProcessing:
             point_type = str(each[0])
             point_address = str(each[1])
 
-            if obj_type == "analog":
+            if obj_type in ("analog", "loop"):
                 units_state = self.read_single(
                     "{} {} units ".format(point_type, point_address)
                 )
             elif obj_type == "multi":
                 units_state = self.read_single(
                     "{} {} stateText ".format(point_type, point_address)
-                )
-            elif obj_type == "loop":
-                units_state = self.read_single(
-                    "{} {} units ".format(point_type, point_address)
                 )
             elif obj_type == "binary":
                 units_state = (

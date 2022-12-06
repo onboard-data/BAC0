@@ -203,6 +203,12 @@ class ReadProperty:
                             "Using a default value of On for internal needs."
                         )
                         return "On"
+                    elif "units" in args:
+                        self._log.warning(
+                            "The units property is not implemented in the device. "
+                            "Using a default value of None for internal needs."
+                        )
+                        return None
                     else:
                         raise UnknownPropertyError("Unknown property {}".format(args))
                 elif reason == "unknownObject":
