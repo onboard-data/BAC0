@@ -11,8 +11,6 @@ Poll.py - create a Polling task to repeatedly read a point.
 import typing as t
 
 # --- standard Python modules ---
-import weakref
-
 from ..core.utils.notes import note_and_log
 
 # --- this application's modules ---
@@ -84,13 +82,13 @@ class DevicePoll(Task):
         """
         self.failures = 0
         self.MAX_FAILURES = 3
-        self._device = weakref.ref(device)
+        self._device = device
         Task.__init__(self, name="{}_{}".format(prefix, name), delay=delay)
         self._counter = 0
 
     @property
-    def device(self) -> t.Union["RPMDeviceConnected", "RPDeviceConnected", None]:
-        return self._device()
+    def device(self) -> t.Union["RPMDeviceConnected", "RPDeviceConnected"]:
+        return self._device
 
     def task(self) -> None:
         if self.device.properties.ping_failures > 0:
