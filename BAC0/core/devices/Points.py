@@ -816,7 +816,8 @@ class BooleanPoint(Point):
         )
 
     def _trend(self, res):
-        res = "1: active" if res == "active" else "0: inactive"
+        if res is not None:
+            res = "1: active" if res == "active" else "0: inactive"
         super()._trend(res)
 
     @property
@@ -929,7 +930,8 @@ class EnumPoint(Point):
         )
 
     def _trend(self, res):
-        res = "{}: {}".format(res, self.get_state(res))
+        if res is not None:
+            res = "{}: {}".format(res, self.get_state(res))
         super()._trend(res)
 
     @property
