@@ -207,7 +207,7 @@ class Device(SQLMixin):
         Take care to call the state init function.
         """
         self._log.info(
-            "Changing device state to {}".format(str(newstate).split(".")[-1])
+            "Changing device {} state to {}".format(self.properties.device_id, str(newstate).split(".")[-1])
         )
         self.__class__ = newstate
         self._init_state()
@@ -905,20 +905,20 @@ class DeviceDisconnected(Device):
 
             except SegmentationNotSupported:
                 self.segmentation_supported = False
-                self._log.warning(
+                self._log.info(
                     "Segmentation not supported.... expect slow responses."
                 )
                 self.new_state(RPDeviceConnected)
 
             except (NoResponseFromController, AttributeError) as error:
-                self._log.warning("Error connecting: %s", error)
+                self._log.warning("Error connecting %s: %s", self.properties.device_id, error, exc_info=error)
                 if self.properties.db_name:
                     self.new_state(DeviceFromDB)
                 else:
-                    self._log.warning(
+                    self._log.info(
                         "Offline: provide database name to load stored data."
                     )
-                    self._log.warning("Ex. controller.connect(db = 'backup')")
+                    self._log.debug("Ex. controller.connect(db = 'backup')")
 
     def df(self, list_of_points, force_read=True):
         raise DeviceNotConnected("Must connect to BACnet or database")

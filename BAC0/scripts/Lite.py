@@ -147,9 +147,8 @@ class Lite(
             if not port:
                 port = 47808
             ip_addr = Address("{}/{}:{}".format(ip, mask, port))
-        self._log.info(
-            f"Using ip : {ip_addr} on port {ip_addr.addrPort} | broadcast : {ip_addr.addrBroadcastTuple[0]}"
-        )
+        self._log.info(f"Using ip : {ip_addr} on port {ip_addr.addrPort} | broadcast : "
+                       f"{ip_addr.addrBroadcastTuple[0]} | bbmd: {bbmdAddress}")
 
         Base.__init__(
             self,

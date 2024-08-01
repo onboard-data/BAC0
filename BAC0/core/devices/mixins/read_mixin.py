@@ -163,7 +163,7 @@ class DiscoveryUtilsMixin:
 
             except NoResponseFromController:
                 self._log.error(
-                    "No object list available. Please provide a custom list using the object_list parameter"
+                    f"No object list available for {self.properties.device_id}. Please provide a custom list using the object_list parameter"
                 )
                 objList = []
 

@@ -218,7 +218,7 @@ class Point:
                 self.properties.bacnet_properties[prop] = v
 
         except Exception as e:
-            raise Exception("Problem reading : {} | {}".format(self.properties.name, e))
+            raise Exception("Problem reading {} {}-{}: {} | {}".format(self.properties.device, self.properties.type, self.properties.address, self.properties.name, e), e)
 
     @property
     def bacnet_properties(self):
