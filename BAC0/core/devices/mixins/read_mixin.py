@@ -159,6 +159,8 @@ class DiscoveryUtilsMixin:
                         self.properties.address, self.properties.device_id
                     ),
                     vendor_id=self.properties.vendor_id,
+                    # list can be large (read: segmented), so give this more time
+                    timeout=30
                 )
 
             except NoResponseFromController:
@@ -313,8 +315,8 @@ class RPMObjectsProcessing:
 
             if len(point_infos) < response_size:
                 self._log.warning(
-                    "There has been a problem defining {} points. It is sometimes due to busy network. Please retry the device creation".format(
-                        obj_type
+                    "There has been a problem defining {} points for {}-{}. It is sometimes due to busy network. Please retry the device creation. Expected {}, got {}".format(
+                        obj_type, point_type, point_address, prop_list, point_infos
                     )
                 )
                 break
@@ -459,8 +461,8 @@ class ReadPropertyMultiple(ReadUtilsMixin, DiscoveryUtilsMixin, RPMObjectsProces
 
         device.read_multiple(['point1', 'point2', 'point3'], points_per_request = 10)
         """
-        if not self.properties.pss["readPropertyMultiple"] or force_single:
-            self._log.warning("Read property Multiple Not supported")
+        if not self.properties.pss['readPropertyMultiple'] or force_single:
+            self._log.warning(f"Read property Multiple Not supported for {self.properties.device_id if hasattr(self.properties, 'device_id') else self.properties.device.properties.device_id}")
             self.read_single(
                 points_list, points_per_request=1, discover_request=discover_request
             )
