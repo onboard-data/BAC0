@@ -785,7 +785,7 @@ class DeviceConnected(Device):
                 self.properties.bacnet_properties[prop] = v
 
         except Exception as e:
-            raise Exception("Problem reading : {} | {}".format(self.properties.name, e))
+            raise Exception("Problem reading device_id {}: all | {}".format(self.properties.device_id, e))
 
     def _bacnet_properties(self, update=False):
         if not self.properties.bacnet_properties or update:
